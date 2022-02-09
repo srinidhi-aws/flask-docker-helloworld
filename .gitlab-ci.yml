@@ -1,0 +1,48 @@
+# This file is a template, and might need editing before it works on your project.
+# To contribute improvements to CI/CD templates, please follow the Development guide at:
+# https://docs.gitlab.com/ee/development/cicd/templates.html
+# This specific template is located at:
+# https://gitlab.com/gitlab-org/gitlab/-/blob/master/lib/gitlab/ci/templates/Docker.gitlab-ci.yml
+
+# Build a Docker image with CI/CD and push to the GitLab registry.
+# Docker-in-Docker documentation: https://docs.gitlab.com/ee/ci/docker/using_docker_build.html
+#
+# This template uses one generic job with conditional builds
+# for the default branch and all other (MR) branches.
+
+image: "docker:latest"
+
+services: 
+  - "docker:dind"
+  
+variables: 
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: /certs
+
+before_script: 
+  - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+
+stages: 
+  - build
+  - deploy
+  
+build:
+  stage: build
+  script: 
+    - docker build -t "$CI_REGISTRY_IMAGE"/hello-world-test:latest .
+    - docker push "$CI_REGISTRY_IMAGE"/hello-world-test:latest
+
+deploy:
+  stage: deploy
+  script:
+    - chmod 600 "$EC2_KEY"
+    - ssh -tt -i "$EC2_KEY" -o StrictHostKeyChecking=no ec2-user@ec2-44-198-181-18.compute-1.amazonaws.com "docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY"
+    - ssh -tt -i "$EC2_KEY" -o StrictHostKeyChecking=no ec2-user@ec2-44-198-181-18.compute-1.amazonaws.com "docker container rm -f \$(docker container ls | grep hello-world | awk '{print \$1}')"
+    - ssh -tt -i "$EC2_KEY" -o StrictHostKeyChecking=no ec2-user@ec2-44-198-181-18.compute-1.amazonaws.com "docker pull registry.gitlab.com/srinidhi_aws/flask-docker-helloworld/hello-world-test"
+    - ssh -tt -i "$EC2_KEY" -o StrictHostKeyChecking=no ec2-user@ec2-44-198-181-18.compute-1.amazonaws.com "docker run -d -p 80:8080 registry.gitlab.com/srinidhi_aws/flask-docker-helloworld/hello-world-test"
+
+
+  
+
+
+
