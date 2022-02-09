@@ -1,9 +1,10 @@
 FROM python:3.8-alpine
 
-ADD requirements.txt /srv/helloworld/
-RUN pip install --no-cache-dir -r /srv/helloworld/requirements.txt
+WORKDIR /usr/src/app
 
-ADD . /srv/helloworld/
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+COPY . .
 
-EXPOSE 5000
-CMD python3 /srv/helloworld/application.py
+EXPOSE 8080
+CMD ["python3", "./application.py"]
